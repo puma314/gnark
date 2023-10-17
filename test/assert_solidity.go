@@ -3,6 +3,7 @@ package test
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -32,9 +33,12 @@ func (assert *Assert) solidityVerification(b backend.ID, vk verifyingKey,
 	assert.t.Helper()
 
 	// make temp dir
-	tmpDir, err := os.MkdirTemp("", "gnark-solidity-check*")
-	assert.NoError(err)
-	defer os.RemoveAll(tmpDir)
+	// tmpDir, err := os.MkdirTemp("", "gnark-solidity-check*")
+	// assert.NoError(err)
+	// defer os.RemoveAll(tmpDir)
+
+	// NOTE: changed tmpDir here to be local so that we can inspect the output
+	tmpDir := "./compiled"
 
 	// export solidity contract
 	fSolidity, err := os.Create(filepath.Join(tmpDir, "gnark_verifier.sol"))
@@ -86,6 +90,10 @@ func (assert *Assert) solidityVerification(b backend.ID, vk verifyingKey,
 	bPublicWitness = bPublicWitness[12:]
 	publicWitnessStr := hex.EncodeToString(bPublicWitness)
 
+	fmt.Printf("proof: %s\n", proofStr)
+	fmt.Printf("public witness: %s\n", publicWitnessStr)
+	fmt.Printf("nbPublic: %d\n", vk.NbPublicWitness())
+
 	// verify proof
 	// gnark-solidity-checker verify --dir tmdir --groth16 --nb-public-inputs 1 --proof 1234 --public-inputs dead
 	cmd = exec.Command("gnark-solidity-checker", "verify",
@@ -96,5 +104,7 @@ func (assert *Assert) solidityVerification(b backend.ID, vk verifyingKey,
 		"--public-inputs", publicWitnessStr)
 	assert.t.Log("running ", cmd.String())
 	out, err = cmd.CombinedOutput()
+	assert.t.Log("output:\n", string(out))
+	assert.t.Log("err: ", err)
 	assert.NoError(err, string(out))
 }

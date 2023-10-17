@@ -5,9 +5,13 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/consensys/gnark-crypto/ecc"
+
+	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/math/cmp"
+	"github.com/consensys/gnark/std/rangecheck"
 	"github.com/consensys/gnark/test"
 )
 
@@ -182,4 +186,46 @@ func maliciousNbitsHint(mod *big.Int, inputs []*big.Int, results []*big.Int) err
 		results[i].SetUint64(uint64(n.Bit(i)))
 	}
 	return nil
+}
+
+type MyRangeCheckCircuit struct {
+	X            frontend.Variable `gnark:",public"`
+	Y            frontend.Variable `gnark:",public"`
+	Z            frontend.Variable `gnark:",public"`
+	DoRangeCheck bool
+}
+
+func (circuit *MyRangeCheckCircuit) Define(api frontend.API) error {
+	api.AssertIsEqual(circuit.Z, api.Add(circuit.X, circuit.Y))
+	if circuit.DoRangeCheck {
+		rangeChecker := rangecheck.New(api)
+		rangeChecker.Check(circuit.X, 8)
+	}
+	return nil
+}
+
+// To run this test, use:
+// go test -v -run TestRangeCheckSolidityVerifier -tags=solccheck
+// Also make sure you've installed gnark-solidity-checker
+// and run `export PATH=$PATH:$HOME/go/bin` to add it to your PATH
+
+func TestRangeCheckSolidityVerifier(t *testing.T) {
+	assert := test.NewAssert(t)
+	assignmentValid := MyRangeCheckCircuit{
+		X:            5,
+		Y:            10,
+		Z:            15,
+		DoRangeCheck: true,
+	}
+
+	// This should fail, because groth16 Solidity verifier doesn't support range checks
+	// but this succeeds
+	assert.CheckCircuit(
+		&MyRangeCheckCircuit{},
+		test.WithValidAssignment(&assignmentValid),
+		test.WithBackends(backend.GROTH16),
+		test.WithCurves(ecc.BN254),
+	)
+
+	t.Errorf("This test should panic")
 }

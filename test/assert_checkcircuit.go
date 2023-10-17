@@ -30,6 +30,9 @@ import (
 func (assert *Assert) CheckCircuit(circuit frontend.Circuit, opts ...TestingOption) {
 	// get the testing configuration
 	opt := assert.options(opts...)
+	// TODO: added these temporarily to enable `checkSolidity`
+	opt.checkSolidity = true
+	opt.checkProver = true
 
 	// for each {curve, backend} tuple
 	for _, curve := range opt.curves {
