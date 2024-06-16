@@ -24,6 +24,8 @@ import (
 	"github.com/consensys/gnark/internal/utils"
 	"github.com/consensys/gnark/logger"
 	iciclegnark "github.com/ingonyama-zk/iciclegnark/curves/bn254"
+
+	fcs "github.com/consensys/gnark/frontend/cs"
 )
 
 const HasIcicle = true
@@ -41,10 +43,18 @@ func (pk *ProvingKey) setupDevicePointers() error {
 	copyCosetDone := make(chan unsafe.Pointer, 1)
 	copyDenDone := make(chan unsafe.Pointer, 1)
 	/*************************     CosetTableInv      ***************************/
-	go iciclegnark.CopyToDevice(pk.Domain.CosetTableInv, sizeBytes, copyCosetInvDone)
+	cosetTableInv, err := pk.Domain.CosetTableInv()
+	if err != nil {
+		return err
+	}
+	go iciclegnark.CopyToDevice(cosetTableInv, sizeBytes, copyCosetInvDone)
 
 	/*************************     CosetTable      ***************************/
-	go iciclegnark.CopyToDevice(pk.Domain.CosetTable, sizeBytes, copyCosetDone)
+	cosetTable, err := pk.Domain.CosetTable()
+	if err != nil {
+		return err
+	}
+	go iciclegnark.CopyToDevice(cosetTable, sizeBytes, copyCosetDone)
 
 	/*************************     Den      ***************************/
 	var denI, oneI fr.Element
@@ -156,8 +166,10 @@ func Prove(r1cs *cs.R1CS, pk *ProvingKey, fullWitness witness.Witness, opts ...b
 	solverOpts := opt.SolverOpts[:len(opt.SolverOpts):len(opt.SolverOpts)]
 
 	privateCommittedValues := make([][]fr.Element, len(commitmentInfo))
+	bsb22ID := solver.GetHintID(fcs.Bsb22CommitmentComputePlaceholder)
+
 	for i := range commitmentInfo {
-		solverOpts = append(solverOpts, solver.OverrideHint(commitmentInfo[i].HintID, func(i int) solver.Hint {
+		solverOpts = append(solverOpts, solver.OverrideHint(bsb22ID, func(i int) solver.Hint {
 			return func(_ *big.Int, in []*big.Int, out []*big.Int) error {
 				privateCommittedValues[i] = make([]fr.Element, len(commitmentInfo[i].PrivateCommitted))
 				hashed := in[:len(commitmentInfo[i].PublicAndCommitmentCommitted)]
