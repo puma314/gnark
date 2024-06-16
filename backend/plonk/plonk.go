@@ -42,6 +42,7 @@ import (
 	plonk_bls24315 "github.com/consensys/gnark/backend/plonk/bls24-315"
 	plonk_bls24317 "github.com/consensys/gnark/backend/plonk/bls24-317"
 	plonk_bn254 "github.com/consensys/gnark/backend/plonk/bn254"
+	icicle_bn254 "github.com/consensys/gnark/backend/plonk/bn254/icicle"
 	plonk_bw6633 "github.com/consensys/gnark/backend/plonk/bw6-633"
 	plonk_bw6761 "github.com/consensys/gnark/backend/plonk/bw6-761"
 
@@ -133,6 +134,9 @@ func Prove(ccs constraint.ConstraintSystem, pk ProvingKey, fullWitness witness.W
 
 	switch tccs := ccs.(type) {
 	case *cs_bn254.SparseR1CS:
+		if icicle_bn254.HasIcicle == true {
+			return icicle_bn254.Prove(tccs, pk.(*plonk_bn254.ProvingKey), fullWitness, opts...)
+		}
 		return plonk_bn254.Prove(tccs, pk.(*plonk_bn254.ProvingKey), fullWitness, opts...)
 
 	case *cs_bls12381.SparseR1CS:
